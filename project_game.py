@@ -9,16 +9,15 @@ class Player:
         self.card = None
 
         self._fold = False
-        self._check = False
         self._bet = False
 
         self._reward = 0
 
-        self.qtable = np.matrix(np.zeros([208,3]))
+        self.qtable = np.matrix(np.zeros([52,3]))
 
     @property
     def action(self):
-        return "fold" if self._fold else "check" if self._check else "bet" if self._bet else "unknown"
+        return "fold" if self._fold else "bet" if self._bet else "unknown"
 
     @property
     def reward(self):
@@ -60,17 +59,15 @@ class Player:
 
         state = 0
 
-        n = 52
+        n = 39
         for p in players:
-            n = int(n/4)
+            n = int(n/3)
             if p.action == 'fold':
                 state += 0 * n
-            elif p.action == 'check':
-                state += 1 * n
             elif p.action == 'bet':
-                state += 2 * n
+                state += 1 * n
             elif p.action == 'unknown':
-                state += 3 * n
+                state += 2 * n
 
         state += (self.card.value - 1)
 
@@ -79,8 +76,8 @@ class Player:
         # print("card", self.card.value)
         # print("reward", self.reward)
 
-        print(self.qtable)
-        action = self.epsilon_greedy(self.qtable, 0.2, 3, 207)
+        # print(self.qtable)
+        action = self.epsilon_greedy(self.qtable, 0.2, 3, 51)
         self.qtable[state, action] += alpha * ( self._reward - self.qtable[state, action])
 
     def __repr__(self):
@@ -115,15 +112,14 @@ class Table:
 
         playeres_fold = list()
         playeres_bet= list()
-        playeres_check = list()
+
 
         for p in self.players:
             if p.action == "fold":
                 playeres_fold.append(p)
             elif p.action == "bet":
                 playeres_bet.append(p)
-            elif p.action == "check":
-                playeres_check.append(p)
+
 
         for p in playeres_fold:
             p.set_reward(0)
@@ -138,18 +134,6 @@ class Table:
 
             maior.set_reward(10)
 
-            for p in playeres_check:
-                p.set_reward(-10)
-
-        elif len(playeres_check) >= 1:
-            maior = playeres_check[0]
-
-            for p in playeres_check:
-                p.set_reward(-10)
-                if p.card.value > maior.card.value:
-                    maior = p
-
-            maior.set_reward(5)
 
         for player in self.players:
             print(player, player.action, player.reward)
