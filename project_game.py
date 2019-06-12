@@ -13,11 +13,16 @@ class Player:
 
         self._reward = 0
 
-        self.qtable = np.matrix(np.zeros([52,3]))
+        self.qtable = np.matrix(np.zeros([52, 2]))
 
     @property
     def action(self):
-        return "fold" if self._fold else "bet" if self._bet else "unknown"
+        if self._fold:
+            return "fold"
+        elif self._bet:
+            return "bet"
+        else:
+            return "unknown"
 
     @property
     def reward(self):
@@ -26,11 +31,12 @@ class Player:
     def set_reward(self, value):
         self._reward = value
 
+    def restart(self):
+        self._fold = False
+        self._bet = False
+
     def fold(self):
         self._fold = True
-
-    def check(self):
-        self._check = True
 
     def bet(self):
         self._bet = True
@@ -45,8 +51,6 @@ class Player:
         if action == 0:
             self.fold()
         elif action == 1:
-            self.check()
-        else:
             self.bet()
         return action
 
@@ -60,7 +64,7 @@ class Player:
         state = 0
 
         n = 39
-        for p in players:
+        for p in pl:
             n = int(n/3)
             if p.action == 'fold':
                 state += 0 * n
@@ -77,8 +81,8 @@ class Player:
         # print("reward", self.reward)
 
         # print(self.qtable)
-        action = self.epsilon_greedy(self.qtable, 0.2, 3, 51)
-        self.qtable[state, action] += alpha * ( self._reward - self.qtable[state, action])
+        action = self.epsilon_greedy(self.qtable, 0.2, 2, 51)
+        self.qtable[state, action] += alpha * (self._reward - self.qtable[state, action])
 
     def __repr__(self):
         return "Player %s" % (str(self.id))
@@ -122,7 +126,7 @@ class Table:
 
 
         for p in playeres_fold:
-            p.set_reward(0)
+            p.set_reward(1)
 
         if len(playeres_bet) >= 1:
             maior = playeres_bet[0]
@@ -136,13 +140,15 @@ class Table:
 
 
         for player in self.players:
-            print(player, player.action, player.reward)
+            print("%s: action (%s) reward(%s) card(%s)"% (player, player.action, player.reward, player.card))
+
 
 
     def round(self):
         self.deck = Deck()
         self.deck.shuffle()
         for player in self.players:
+            player.restart()
             player.card = self.deck.deal_the_cards()
 
         for player in self.players:
@@ -150,10 +156,10 @@ class Table:
         self.reward()
 
 
-
 if __name__ == "__main__":
     t = Table(3)
 
-    for i in range(100):
-        print(">", i)
+    for i in range(1000):
+        print("Step", i)
         t.round()
+    print()
