@@ -5,15 +5,17 @@ class Player:
 
     def __init__(self, id):
         self.id = id
-
         self.card = None
+
+        self.state_value = None
+        self.action_value = None
+
+        self.qtable = np.matrix(np.zeros([117, 2]))
 
         self._fold = False
         self._bet = False
-
         self._reward = 0
 
-        self.qtable = np.matrix(np.zeros([52, 2]))
 
     @property
     def action(self):
@@ -41,12 +43,12 @@ class Player:
     def bet(self):
         self._bet = True
 
-    def epsilon_greedy(self, Q, epsilon, n_actions, s, train=False):
+    def epsilon_greedy(self, state, train=False):
 
-        if train or np.random.rand() < epsilon:
-            action = np.argmax(Q[s, :])
+        if train or np.random.rand() < 0.9:
+            action = np.argmax(self.qtable[state, :])
         else:
-            action = np.random.randint(0, n_actions)
+            action = np.random.randint(0, 2)
 
         if action == 0:
             self.fold()
@@ -54,35 +56,37 @@ class Player:
             self.bet()
         return action
 
-    def ql(self, players):
-        alpha = 0.8
 
+    def chose(self, players):
         pl = players.copy()
-
         pl.remove(self)
-
         state = 0
 
-        n = 39
+        state_list = list()
+
         for p in pl:
-            n = int(n/3)
             if p.action == 'fold':
-                state += 0 * n
+                state_list.append(0)
             elif p.action == 'bet':
-                state += 1 * n
+                state_list.append(1)
             elif p.action == 'unknown':
-                state += 2 * n
+                state_list.append(2)
 
-        state += (self.card.value - 1)
+        state_list.append(self.card.value - 1)
+
+        n = 39
+        for s in state_list[:-1]:
+            state += s*n
+            n /= 3
+        state += state_list[-1]
+
+        print(state)
+        self.state_value = int(state)
+        self.action_value = self.epsilon_greedy(self.state_value)
 
 
-        # print("state", state)
-        # print("card", self.card.value)
-        # print("reward", self.reward)
-
-        # print(self.qtable)
-        action = self.epsilon_greedy(self.qtable, 0.2, 2, 51)
-        self.qtable[state, action] += alpha * (self._reward - self.qtable[state, action])
+    def ql(self, alpha):
+        self.qtable[self.state_value, self.action_value] += alpha * (self._reward - self.qtable[self.state_value, self.action_value])
 
     def __repr__(self):
         return "Player %s" % (str(self.id))
@@ -112,6 +116,7 @@ class Table:
     def __init__(self, n_players):
         self.players = [Player(i) for i in range(n_players)]
 
+
     def reward(self):
 
         playeres_fold = list()
@@ -126,7 +131,7 @@ class Table:
 
 
         for p in playeres_fold:
-            p.set_reward(1)
+            p.set_reward(0)
 
         if len(playeres_bet) >= 1:
             maior = playeres_bet[0]
@@ -151,15 +156,30 @@ class Table:
             player.restart()
             player.card = self.deck.deal_the_cards()
 
+
+
         for player in self.players:
-            player.ql(self.players)
+            player.chose(self.players)
+
         self.reward()
+
+        for player in self.players:
+            player.ql(0.8)
 
 
 if __name__ == "__main__":
     t = Table(3)
 
-    for i in range(1000):
+    for i in range(10000):
         print("Step", i)
         t.round()
-    print()
+
+
+    for p in t.players:
+        i = 0
+        print(p, "--- QTABLE")
+        for q in p.qtable:
+            print(i%13 + 1, q[:, 1], sep='\t')
+            i += 1
+        print("\n\n")
+
